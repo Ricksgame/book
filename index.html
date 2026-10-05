@@ -1,136 +1,933 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0.1, maximum-scale=4,user-scalable=yes">
-<!-- quaggaJSの読み込み -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0.1, maximum-scale=4, user-scalable=yes">
+
+<title>図書館貸出システム</title>
+
 <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
-<script>
-var DetectedCount=0,DetectedCode="";
-var video,tmp,tmp_ctx,jan,prev,prev_ctx,w,h,mw,mh,x1,y1;
-window.addEventListener('load',function(event){
-  video=document.createElement('video');
-  video.setAttribute("autoplay","");
-  video.setAttribute("muted","");
-  video.setAttribute("playsinline","");
-  video.onloadedmetadata = function(e){video.play();};
-  prev=document.getElementById("preview");
-  prev_ctx=prev.getContext("2d", {willReadFrequently:true});
-  tmp = document.createElement('canvas');
-  tmp_ctx = tmp.getContext("2d", {willReadFrequently:true});
-  jan=document.getElementById("jan");
 
-  //カメラ使用の許可ダイアログが表示される
-  navigator.mediaDevices.getUserMedia(
-    //マイクはオフ, カメラの設定   背面カメラを希望する 640×480を希望する
-    {"audio":false,"video":{"facingMode":"environment","width":{"ideal":640},"height":{"ideal":480}}}
-  ).then( //許可された場合
-    function(stream){
-      video.srcObject = stream;
-      //0.5秒毎にスキャンする
-      setTimeout(Scan,500,true);
-    }
-  ).catch( //許可されなかった場合
-    function(err){jan.value+=err+'\n';}
-  );
+<style>
+body {
+    font-family: sans-serif;
+    margin: 0;
+    padding: 20px;
+    background: #f5f5f5;
+}
 
-  function Scan(first){
-    if(first){
-      //選択された幅高さ
-      w=video.videoWidth;
-      h=video.videoHeight;
-      //画面上の表示サイズ
-      prev.style.width=(w/2)+"px";
-      prev.style.height=(h/2)+"px";
-      //内部のサイズ
-      prev.setAttribute("width",w);
-      prev.setAttribute("height",h);
-      mw=w*0.5;
-      mh=w*0.2;
-      x1=(w-mw)/2;
-      y1=(h-mh)/2;
-    }
-    prev_ctx.drawImage(video,0,0,w,h);
-    prev_ctx.beginPath();
-    prev_ctx.strokeStyle="rgb(255,0,0)";
-    prev_ctx.lineWidth=2;
-    prev_ctx.rect(x1,y1,mw,mh);
-    prev_ctx.stroke();
-    tmp.setAttribute("width",mw);
-    tmp.setAttribute("height",mh);
-    tmp_ctx.drawImage(prev,x1,y1,mw,mh,0,0,mw,mh);
+h1 {
+    font-size: 24px;
+}
 
-    tmp.toBlob(function(blob){
-      let reader = new FileReader();
-      reader.onload=function(){
-        let config={
-          decoder: {
-            readers: ["ean_reader","ean_8_reader"],
-            multiple: false, //同時に複数のバーコードを解析しない
-          },
-          locator:{patchSize:"large",halfSample:false},
-          locate:false,
-          src:reader.result,
-        };
-        Quagga.decodeSingle(config,function(){});
-      }
-      reader.readAsDataURL(blob);
-    });
-    setTimeout(Scan,50,false);
-  }
+.container {
+    max-width: 700px;
+    margin: auto;
+}
 
-  Quagga.onDetected(function (result) {
-    //読み取り誤差が多いため、3回連続で同じ値だった場合に成功とする
-    if(DetectedCode==result.codeResult.code){
-      DetectedCount++;
-    }else{
-      DetectedCount=0;
-      DetectedCode=result.codeResult.code;
-    }
-    if(DetectedCount>=3){
-      console.log(result.codeResult.code);
-      jan.value+=result.codeResult.code+'\n';
-      jan.scrollTop=jan.scrollHeight;
-      DetectedCode='';
-      DetectedCount=0;
-    }
-  });
-  
-  Quagga.onDetected(function(result) {
-    const barcode = result.codeResult.code;
+.section {
+    background: white;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 10px;
+}
 
-    sendBarcode(barcode);
-});
-});
-</script>
+select,
+button {
+    font-size: 18px;
+    padding: 10px;
+}
+
+button {
+    cursor: pointer;
+}
+
+#preview {
+    max-width: 100%;
+    height: auto;
+}
+
+#status {
+    margin-top: 10px;
+    padding: 10px;
+    background: #eee;
+    border-radius: 5px;
+}
+
+.cart-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #ddd;
+    padding: 10px 0;
+}
+
+.cart-title {
+    font-weight: bold;
+}
+
+.cart-jan {
+    font-size: 13px;
+    color: #666;
+}
+
+.delete-button {
+    font-size: 14px;
+    padding: 5px 8px;
+}
+
+#lendButton {
+    width: 100%;
+    margin-top: 15px;
+    background: #333;
+    color: white;
+    border: none;
+    border-radius: 5px;
+}
+
+#lendButton:disabled {
+    background: #aaa;
+}
+
+#cameraArea {
+    text-align: center;
+}
+
+#jan {
+    width: 100%;
+    box-sizing: border-box;
+}
+</style>
 </head>
-<body>
-  <div><canvas id="preview"></canvas></div>
-  <textarea id="jan" rows="8" cols="40"></textarea>
-  <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbw-apii7cWNWSE2qITA78Z6xsE0Vo4VHxixIj9buQocXLGet8wtReIQYnY507q_y4Ekww/exec";
 
-    function sendBarcode(barcode) {
-        fetch(GAS_URL + "?barcode=" + encodeURIComponent(barcode))
-            .then(response => response.json())
+<body>
+
+<div class="container">
+
+<h1>📚 図書館貸出システム</h1>
+
+<div class="section">
+
+<h2>ユーザー</h2>
+
+<select id="userSelect">
+    <option value="">ユーザーを選択してください</option>
+</select>
+
+</div>
+
+
+<div class="section">
+
+<h2>📷 本を追加</h2>
+
+<div id="cameraArea">
+    <canvas id="preview"></canvas>
+</div>
+
+<div id="status">
+    ユーザーを選択してください
+</div>
+
+</div>
+
+
+<div class="section">
+
+<h2>🛒 貸出カート</h2>
+
+<div id="cart">
+    カートは空です
+</div>
+
+<button id="lendButton" disabled>
+    貸し出す
+</button>
+
+</div>
+
+
+<div class="section">
+
+<h2>読み取り履歴</h2>
+
+<textarea id="jan" rows="5" readonly></textarea>
+
+</div>
+
+</div>
+
+
+<script>
+
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwDnjpvSqcCZ1GVGwavSQ9QURw4vNfq4OiqlKQXqhYkMZC-9wi3QGNzW50XVF7yIpmR4Q/exec";
+
+
+let cart = [];
+
+let selectedUser = "";
+
+let DetectedCount = 0;
+let DetectedCode = "";
+
+let video;
+let prev;
+let prev_ctx;
+let tmp;
+let tmp_ctx;
+
+let jan;
+
+let w;
+let h;
+let mw;
+let mh;
+let x1;
+let y1;
+
+
+/* =========================
+   初期化
+========================= */
+
+window.addEventListener("load", function() {
+
+    video = document.createElement("video");
+
+    video.setAttribute("autoplay", "");
+    video.setAttribute("muted", "");
+    video.setAttribute("playsinline", "");
+
+    video.onloadedmetadata = function() {
+        video.play();
+    };
+
+
+    prev = document.getElementById("preview");
+
+    prev_ctx = prev.getContext(
+        "2d",
+        { willReadFrequently: true }
+    );
+
+
+    tmp = document.createElement("canvas");
+
+    tmp_ctx = tmp.getContext(
+        "2d",
+        { willReadFrequently: true }
+    );
+
+
+    jan = document.getElementById("jan");
+
+
+    loadUsers();
+
+    startCamera();
+
+});
+
+
+/* =========================
+   ユーザー取得
+========================= */
+
+function loadUsers() {
+
+    fetch(GAS_URL + "?action=getUsers")
+
+        .then(response => response.json())
+
+        .then(users => {
+
+            const select =
+                document.getElementById("userSelect");
+
+            users.forEach(user => {
+
+                const option =
+                    document.createElement("option");
+
+                option.value = user;
+                option.textContent = user;
+
+                select.appendChild(option);
+
+            });
+
+        })
+
+        .catch(error => {
+
+            console.error(error);
+
+            setStatus(
+                "ユーザー情報を取得できませんでした"
+            );
+
+        });
+}
+
+
+/* =========================
+   ユーザー選択
+========================= */
+
+document
+    .getElementById("userSelect")
+    .addEventListener("change", function() {
+
+        selectedUser = this.value;
+
+        if (selectedUser === "") {
+
+            setStatus(
+                "ユーザーを選択してください"
+            );
+
+        } else {
+
+            setStatus(
+                selectedUser +
+                " さんが選択されています"
+            );
+
+        }
+
+    });
+
+
+/* =========================
+   カメラ起動
+========================= */
+
+function startCamera() {
+
+    navigator.mediaDevices.getUserMedia({
+
+        audio: false,
+
+        video: {
+            facingMode: "environment",
+            width: {
+                ideal: 640
+            },
+            height: {
+                ideal: 480
+            }
+        }
+
+    })
+
+    .then(function(stream) {
+
+        video.srcObject = stream;
+
+        setTimeout(
+            function() {
+                Scan(true);
+            },
+            500
+        );
+
+    })
+
+    .catch(function(err) {
+
+        console.error(err);
+
+        setStatus(
+            "カメラを使用できません: " +
+            err.message
+        );
+
+    });
+
+}
+
+
+/* =========================
+   スキャン
+========================= */
+
+function Scan(first) {
+
+    if (first) {
+
+        w = video.videoWidth;
+        h = video.videoHeight;
+
+        prev.style.width =
+            (w / 2) + "px";
+
+        prev.style.height =
+            (h / 2) + "px";
+
+        prev.setAttribute(
+            "width",
+            w
+        );
+
+        prev.setAttribute(
+            "height",
+            h
+        );
+
+        mw = w * 0.5;
+        mh = w * 0.2;
+
+        x1 = (w - mw) / 2;
+        y1 = (h - mh) / 2;
+
+    }
+
+
+    prev_ctx.drawImage(
+        video,
+        0,
+        0,
+        w,
+        h
+    );
+
+
+    prev_ctx.beginPath();
+
+    prev_ctx.strokeStyle =
+        "rgb(255,0,0)";
+
+    prev_ctx.lineWidth = 2;
+
+    prev_ctx.rect(
+        x1,
+        y1,
+        mw,
+        mh
+    );
+
+    prev_ctx.stroke();
+
+
+    tmp.setAttribute(
+        "width",
+        mw
+    );
+
+    tmp.setAttribute(
+        "height",
+        mh
+    );
+
+
+    tmp_ctx.drawImage(
+        prev,
+        x1,
+        y1,
+        mw,
+        mh,
+        0,
+        0,
+        mw,
+        mh
+    );
+
+
+    tmp.toBlob(function(blob) {
+
+        let reader =
+            new FileReader();
+
+
+        reader.onload = function() {
+
+            let config = {
+
+                decoder: {
+
+                    readers: [
+                        "ean_reader",
+                        "ean_8_reader"
+                    ],
+
+                    multiple: false
+
+                },
+
+                locator: {
+
+                    patchSize: "large",
+
+                    halfSample: false
+
+                },
+
+                locate: false,
+
+                src: reader.result
+
+            };
+
+
+            Quagga.decodeSingle(
+                config,
+                function() {}
+            );
+
+        };
+
+
+        reader.readAsDataURL(blob);
+
+    });
+
+
+    setTimeout(
+        function() {
+            Scan(false);
+        },
+        50
+    );
+
+}
+
+
+/* =========================
+   JANコード検出
+========================= */
+
+Quagga.onDetected(function(result) {
+
+    if (
+        !result ||
+        !result.codeResult ||
+        !result.codeResult.code
+    ) {
+        return;
+    }
+
+
+    const barcode =
+        result.codeResult.code;
+
+
+    /*
+     * 3回連続で同じJANなら
+     * 正式に読み取ったと判断
+     */
+
+    if (DetectedCode === barcode) {
+
+        DetectedCount++;
+
+    } else {
+
+        DetectedCount = 1;
+
+        DetectedCode = barcode;
+
+    }
+
+
+    if (DetectedCount >= 3) {
+
+        DetectedCode = "";
+        DetectedCount = 0;
+
+        confirmBarcode(barcode);
+
+    }
+
+});
+
+
+/* =========================
+   JAN確定
+========================= */
+
+function confirmBarcode(barcode) {
+
+    if (selectedUser === "") {
+
+        setStatus(
+            "先にユーザーを選択してください"
+        );
+
+        return;
+
+    }
+
+
+    /*
+     * 読み取り履歴に表示
+     */
+
+    jan.value +=
+        barcode + "\n";
+
+    jan.scrollTop =
+        jan.scrollHeight;
+
+
+    /*
+     * すでにカートにあるか確認
+     */
+
+    const alreadyInCart =
+        cart.some(
+            book => book.jan === barcode
+        );
+
+
+    if (alreadyInCart) {
+
+        setStatus(
+            "この本はすでにカートに入っています"
+        );
+
+        return;
+
+    }
+
+
+    setStatus(
+        "本を確認しています..."
+    );
+
+
+    /*
+     * GASから本の情報を取得
+     */
+
+    fetch(
+        GAS_URL +
+        "?action=getBooks"
+    )
+
+    .then(response =>
+        response.json()
+    )
+
+    .then(books => {
+
+        const book =
+            books.find(
+                book =>
+                    book.jan === barcode
+            );
+
+
+        if (!book) {
+
+            setStatus(
+                "このJANコードの本は登録されていません"
+            );
+
+            return;
+
+        }
+
+
+        if (book.stock <= 0) {
+
+            setStatus(
+                book.title +
+                " は在庫切れです"
+            );
+
+            return;
+
+        }
+
+
+        /*
+         * カートに追加
+         */
+
+        cart.push(book);
+
+
+        renderCart();
+
+
+        setStatus(
+            "「" +
+            book.title +
+            "」をカートに追加しました"
+        );
+
+    })
+
+    .catch(error => {
+
+        console.error(error);
+
+        setStatus(
+            "本の情報を取得できませんでした"
+        );
+
+    });
+
+}
+
+
+/* =========================
+   カート表示
+========================= */
+
+function renderCart() {
+
+    const cartElement =
+        document.getElementById("cart");
+
+
+    const lendButton =
+        document.getElementById("lendButton");
+
+
+    if (cart.length === 0) {
+
+        cartElement.textContent =
+            "カートは空です";
+
+        lendButton.disabled = true;
+
+        return;
+
+    }
+
+
+    cartElement.innerHTML = "";
+
+
+    cart.forEach(function(book, index) {
+
+        const item =
+            document.createElement("div");
+
+        item.className =
+            "cart-item";
+
+
+        const info =
+            document.createElement("div");
+
+
+        const title =
+            document.createElement("div");
+
+        title.className =
+            "cart-title";
+
+        title.textContent =
+            book.title;
+
+
+        const janText =
+            document.createElement("div");
+
+        janText.className =
+            "cart-jan";
+
+        janText.textContent =
+            "JAN: " + book.jan;
+
+
+        info.appendChild(title);
+        info.appendChild(janText);
+
+
+        const deleteButton =
+            document.createElement("button");
+
+        deleteButton.className =
+            "delete-button";
+
+        deleteButton.textContent =
+            "削除";
+
+
+        deleteButton.addEventListener(
+            "click",
+            function() {
+
+                cart.splice(index, 1);
+
+                renderCart();
+
+                setStatus(
+                    "カートから削除しました"
+                );
+
+            }
+        );
+
+
+        item.appendChild(info);
+        item.appendChild(deleteButton);
+
+
+        cartElement.appendChild(item);
+
+    });
+
+
+    lendButton.disabled = false;
+
+}
+
+
+/* =========================
+   貸し出し
+========================= */
+
+document
+    .getElementById("lendButton")
+    .addEventListener(
+        "click",
+        function() {
+
+            if (selectedUser === "") {
+
+                setStatus(
+                    "ユーザーを選択してください"
+                );
+
+                return;
+
+            }
+
+
+            if (cart.length === 0) {
+
+                setStatus(
+                    "カートが空です"
+                );
+
+                return;
+
+            }
+
+
+            const lendButton =
+                document.getElementById(
+                    "lendButton"
+                );
+
+
+            lendButton.disabled = true;
+
+            setStatus(
+                "貸し出し処理中..."
+            );
+
+
+            /*
+             * JANコードだけを送信
+             */
+
+            const books =
+                cart.map(
+                    book => book.jan
+                );
+
+
+            const params =
+                new URLSearchParams();
+
+
+            params.append(
+                "action",
+                "lend"
+            );
+
+
+            params.append(
+                "user",
+                selectedUser
+            );
+
+
+            params.append(
+                "books",
+                JSON.stringify(books)
+            );
+
+
+            fetch(
+                GAS_URL +
+                "?" +
+                params.toString()
+            )
+
+            .then(response =>
+                response.json()
+            )
+
             .then(data => {
-                console.log(data);
 
                 if (data.success) {
+
                     alert(
-                        data.product +
-                        "\n貸出可能\n残: " +
-                        data.stock
+                        "貸し出しが完了しました"
                     );
+
+
+                    cart = [];
+
+                    renderCart();
+
+
+                    jan.value = "";
+
+
+                    setStatus(
+                        "貸し出し完了"
+                    );
+
                 } else {
-                    alert(data.message);
+
+                    alert(
+                        data.message
+                    );
+
+                    lendButton.disabled =
+                        false;
+
                 }
+
             })
+
             .catch(error => {
+
                 console.error(error);
-                alert("サーバーとの通信に失敗しました");
+
+                alert(
+                    "貸し出し処理に失敗しました"
+                );
+
+                lendButton.disabled =
+                    false;
+
             });
-    }
-  </script>
+
+        }
+    );
+
+
+/* =========================
+   ステータス表示
+========================= */
+
+function setStatus(message) {
+
+    document.getElementById(
+        "status"
+    ).textContent = message;
+
+}
+
+</script>
+
 </body>
 </html>
