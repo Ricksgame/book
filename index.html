@@ -4,7 +4,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0.1, maximum-scale=4,user-scalable=yes">
 <!-- quaggaJSの読み込み -->
-<script src="./quagga.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
 <script>
 var DetectedCount=0,DetectedCode="";
 var video,tmp,tmp_ctx,jan,prev,prev_ctx,w,h,mw,mh,x1,y1;
@@ -95,11 +95,42 @@ window.addEventListener('load',function(event){
       DetectedCount=0;
     }
   });
+  
+  Quagga.onDetected(function(result) {
+    const barcode = result.codeResult.code;
+
+    sendBarcode(barcode);
+});
 });
 </script>
 </head>
 <body>
   <div><canvas id="preview"></canvas></div>
   <textarea id="jan" rows="8" cols="40"></textarea>
+  <script>
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbw-apii7cWNWSE2qITA78Z6xsE0Vo4VHxixIj9buQocXLGet8wtReIQYnY507q_y4Ekww/exec";
+
+    function sendBarcode(barcode) {
+        fetch(GAS_URL + "?barcode=" + encodeURIComponent(barcode))
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+
+                if (data.success) {
+                    alert(
+                        data.product +
+                        "\n貸出可能\n残: " +
+                        data.stock
+                    );
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => {
+                console.error(error);
+                alert("サーバーとの通信に失敗しました");
+            });
+    }
+  </script>
 </body>
 </html>
