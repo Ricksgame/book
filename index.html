@@ -1,14 +1,20 @@
+```html
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
+
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0.1, maximum-scale=4, user-scalable=yes">
+
+<meta name="viewport"
+      content="width=device-width, initial-scale=1, minimum-scale=0.1, maximum-scale=4, user-scalable=yes">
 
 <title>図書館貸出システム</title>
 
 <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
 
 <style>
+
 body {
     font-family: sans-serif;
     margin: 0;
@@ -76,16 +82,46 @@ button {
     padding: 5px 8px;
 }
 
-#lendButton {
+#actionButtons {
+    display: flex;
+    gap: 10px;
+}
+
+#actionButtons button {
+    flex: 1;
+    border: none;
+    border-radius: 5px;
+}
+
+#lendModeButton {
+    background: #333;
+    color: white;
+}
+
+#returnModeButton {
+    background: #aaa;
+    color: white;
+}
+
+#lendButton,
+#returnButton {
     width: 100%;
     margin-top: 15px;
-    background: #333;
     color: white;
     border: none;
     border-radius: 5px;
 }
 
-#lendButton:disabled {
+#lendButton {
+    background: #333;
+}
+
+#returnButton {
+    background: #277a3d;
+}
+
+#lendButton:disabled,
+#returnButton:disabled {
     background: #aaa;
 }
 
@@ -97,8 +133,15 @@ button {
     width: 100%;
     box-sizing: border-box;
 }
+
+.hidden {
+    display: none;
+}
+
 </style>
+
 </head>
+
 
 <body>
 
@@ -106,12 +149,36 @@ button {
 
 <h1>📚 図書館貸出システム</h1>
 
+
 <div class="section">
+
+<h2>操作</h2>
+
+<div id="actionButtons">
+
+<button id="lendModeButton">
+📕 貸出
+</button>
+
+<button id="returnModeButton">
+📗 返却
+</button>
+
+</div>
+
+</div>
+
+
+<div class="section" id="userSection">
 
 <h2>ユーザー</h2>
 
 <select id="userSelect">
-    <option value="">ユーザーを選択してください</option>
+
+<option value="">
+ユーザーを選択してください
+</option>
+
 </select>
 
 </div>
@@ -119,14 +186,16 @@ button {
 
 <div class="section">
 
-<h2>📷 本を追加</h2>
+<h2 id="scanTitle">📷 本を追加</h2>
 
 <div id="cameraArea">
-    <canvas id="preview"></canvas>
+
+<canvas id="preview"></canvas>
+
 </div>
 
 <div id="status">
-    ユーザーを選択してください
+ユーザーを選択してください
 </div>
 
 </div>
@@ -134,14 +203,18 @@ button {
 
 <div class="section">
 
-<h2>🛒 貸出カート</h2>
+<h2 id="cartTitle">🛒 貸出カート</h2>
 
 <div id="cart">
-    カートは空です
+カートは空です
 </div>
 
 <button id="lendButton" disabled>
-    貸し出す
+貸し出す
+</button>
+
+<button id="returnButton" disabled class="hidden">
+返却する
 </button>
 
 </div>
@@ -151,39 +224,58 @@ button {
 
 <h2>読み取り履歴</h2>
 
-<textarea id="jan" rows="5" readonly></textarea>
+<textarea id="jan"
+          rows="5"
+          readonly></textarea>
 
 </div>
+
 
 </div>
 
 
 <script>
 
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwDnjpvSqcCZ1GVGwavSQ9QURw4vNfq4OiqlKQXqhYkMZC-9wi3QGNzW50XVF7yIpmR4Q/exec";
+
+const GAS_URL = "https://script.google.com/macros/s/AKfycbyGENey-Lzs-00892pPg2p5fAnCI7Vo32b8aXxV5xg-kIjfiqo5rFKNRUDOmg74-WgX/exec";
 
 
 let cart = [];
 
 let selectedUser = "";
 
+let currentMode = "lend";
+
+
 let DetectedCount = 0;
+
 let DetectedCode = "";
 
+
 let video;
+
 let prev;
+
 let prev_ctx;
+
 let tmp;
+
 let tmp_ctx;
 
 let jan;
 
 let w;
+
 let h;
+
 let mw;
+
 let mh;
+
 let x1;
+
 let y1;
+
 
 
 /* =========================
@@ -226,7 +318,10 @@ window.addEventListener("load", function() {
 
     startCamera();
 
+    updateMode();
+
 });
+
 
 
 /* =========================
@@ -244,12 +339,14 @@ function loadUsers() {
             const select =
                 document.getElementById("userSelect");
 
+
             users.forEach(user => {
 
                 const option =
                     document.createElement("option");
 
                 option.value = user;
+
                 option.textContent = user;
 
                 select.appendChild(option);
@@ -267,7 +364,9 @@ function loadUsers() {
             );
 
         });
+
 }
+
 
 
 /* =========================
@@ -279,6 +378,12 @@ document
     .addEventListener("change", function() {
 
         selectedUser = this.value;
+
+
+        if (currentMode !== "lend") {
+            return;
+        }
+
 
         if (selectedUser === "") {
 
@@ -298,6 +403,134 @@ document
     });
 
 
+
+/* =========================
+   モード切り替え
+========================= */
+
+document
+    .getElementById("lendModeButton")
+    .addEventListener("click", function() {
+
+        currentMode = "lend";
+
+        cart = [];
+
+        renderCart();
+
+        updateMode();
+
+    });
+
+
+
+document
+    .getElementById("returnModeButton")
+    .addEventListener("click", function() {
+
+        currentMode = "return";
+
+        cart = [];
+
+        renderCart();
+
+        updateMode();
+
+    });
+
+
+
+function updateMode() {
+
+    const userSection =
+        document.getElementById("userSection");
+
+    const lendModeButton =
+        document.getElementById("lendModeButton");
+
+    const returnModeButton =
+        document.getElementById("returnModeButton");
+
+    const scanTitle =
+        document.getElementById("scanTitle");
+
+    const cartTitle =
+        document.getElementById("cartTitle");
+
+    const lendButton =
+        document.getElementById("lendButton");
+
+    const returnButton =
+        document.getElementById("returnButton");
+
+
+    if (currentMode === "lend") {
+
+        userSection.classList.remove("hidden");
+
+        scanTitle.textContent =
+            "📷 本を追加";
+
+        cartTitle.textContent =
+            "🛒 貸出カート";
+
+        lendButton.classList.remove("hidden");
+
+        returnButton.classList.add("hidden");
+
+        lendModeButton.style.background =
+            "#333";
+
+        returnModeButton.style.background =
+            "#aaa";
+
+
+        if (selectedUser === "") {
+
+            setStatus(
+                "ユーザーを選択してください"
+            );
+
+        } else {
+
+            setStatus(
+                selectedUser +
+                " さんが選択されています"
+            );
+
+        }
+
+    } else {
+
+        userSection.classList.add("hidden");
+
+        scanTitle.textContent =
+            "📷 返却する本を読み取り";
+
+        cartTitle.textContent =
+            "🛒 返却カート";
+
+        lendButton.classList.add("hidden");
+
+        returnButton.classList.remove("hidden");
+
+        lendModeButton.style.background =
+            "#aaa";
+
+        returnModeButton.style.background =
+            "#277a3d";
+
+
+        setStatus(
+            "返却する本のJANコードを読み取ってください"
+        );
+
+    }
+
+}
+
+
+
 /* =========================
    カメラ起動
 ========================= */
@@ -309,13 +542,17 @@ function startCamera() {
         audio: false,
 
         video: {
+
             facingMode: "environment",
+
             width: {
                 ideal: 640
             },
+
             height: {
                 ideal: 480
             }
+
         }
 
     })
@@ -347,6 +584,7 @@ function startCamera() {
 }
 
 
+
 /* =========================
    スキャン
 ========================= */
@@ -356,13 +594,16 @@ function Scan(first) {
     if (first) {
 
         w = video.videoWidth;
+
         h = video.videoHeight;
+
 
         prev.style.width =
             (w / 2) + "px";
 
         prev.style.height =
             (h / 2) + "px";
+
 
         prev.setAttribute(
             "width",
@@ -374,10 +615,14 @@ function Scan(first) {
             h
         );
 
+
         mw = w * 0.5;
+
         mh = w * 0.2;
 
+
         x1 = (w - mw) / 2;
+
         y1 = (h - mh) / 2;
 
     }
@@ -399,12 +644,14 @@ function Scan(first) {
 
     prev_ctx.lineWidth = 2;
 
+
     prev_ctx.rect(
         x1,
         y1,
         mw,
         mh
     );
+
 
     prev_ctx.stroke();
 
@@ -454,6 +701,7 @@ function Scan(first) {
 
                 },
 
+
                 locator: {
 
                     patchSize: "large",
@@ -461,6 +709,7 @@ function Scan(first) {
                     halfSample: false
 
                 },
+
 
                 locate: false,
 
@@ -492,6 +741,7 @@ function Scan(first) {
 }
 
 
+
 /* =========================
    JANコード検出
 ========================= */
@@ -503,7 +753,9 @@ Quagga.onDetected(function(result) {
         !result.codeResult ||
         !result.codeResult.code
     ) {
+
         return;
+
     }
 
 
@@ -532,6 +784,7 @@ Quagga.onDetected(function(result) {
     if (DetectedCount >= 3) {
 
         DetectedCode = "";
+
         DetectedCount = 0;
 
         confirmBarcode(barcode);
@@ -541,13 +794,23 @@ Quagga.onDetected(function(result) {
 });
 
 
+
 /* =========================
    JAN確定
 ========================= */
 
 function confirmBarcode(barcode) {
 
-    if (selectedUser === "") {
+
+    /*
+     * 貸出モードでは
+     * ユーザーが必要
+     */
+
+    if (
+        currentMode === "lend" &&
+        selectedUser === ""
+    ) {
 
         setStatus(
             "先にユーザーを選択してください"
@@ -567,6 +830,7 @@ function confirmBarcode(barcode) {
 
     jan.scrollTop =
         jan.scrollHeight;
+
 
 
     /*
@@ -610,6 +874,7 @@ function confirmBarcode(barcode) {
 
     .then(books => {
 
+
         const book =
             books.find(
                 book =>
@@ -628,20 +893,33 @@ function confirmBarcode(barcode) {
         }
 
 
-        if (book.stock <= 0) {
 
-            setStatus(
-                book.title +
-                " は在庫切れです"
-            );
+        /*
+         * 貸出モード
+         */
 
-            return;
+        if (currentMode === "lend") {
+
+            if (book.stock <= 0) {
+
+                setStatus(
+                    book.title +
+                    " は在庫切れです"
+                );
+
+                return;
+
+            }
 
         }
 
 
+
         /*
-         * カートに追加
+         * 返却モード
+         *
+         * 返却時は在庫数を確認せず、
+         * 貸出履歴側で実際に貸出中か確認する
          */
 
         cart.push(book);
@@ -650,11 +928,23 @@ function confirmBarcode(barcode) {
         renderCart();
 
 
-        setStatus(
-            "「" +
-            book.title +
-            "」をカートに追加しました"
-        );
+        if (currentMode === "lend") {
+
+            setStatus(
+                "「" +
+                book.title +
+                "」を貸出カートに追加しました"
+            );
+
+        } else {
+
+            setStatus(
+                "「" +
+                book.title +
+                "」を返却カートに追加しました"
+            );
+
+        }
 
     })
 
@@ -671,6 +961,7 @@ function confirmBarcode(barcode) {
 }
 
 
+
 /* =========================
    カート表示
 ========================= */
@@ -685,12 +976,19 @@ function renderCart() {
         document.getElementById("lendButton");
 
 
+    const returnButton =
+        document.getElementById("returnButton");
+
+
     if (cart.length === 0) {
 
         cartElement.textContent =
             "カートは空です";
 
+
         lendButton.disabled = true;
+
+        returnButton.disabled = true;
 
         return;
 
@@ -705,6 +1003,7 @@ function renderCart() {
         const item =
             document.createElement("div");
 
+
         item.className =
             "cart-item";
 
@@ -716,8 +1015,10 @@ function renderCart() {
         const title =
             document.createElement("div");
 
+
         title.className =
             "cart-title";
+
 
         title.textContent =
             book.title;
@@ -726,22 +1027,27 @@ function renderCart() {
         const janText =
             document.createElement("div");
 
+
         janText.className =
             "cart-jan";
+
 
         janText.textContent =
             "JAN: " + book.jan;
 
 
         info.appendChild(title);
+
         info.appendChild(janText);
 
 
         const deleteButton =
             document.createElement("button");
 
+
         deleteButton.className =
             "delete-button";
+
 
         deleteButton.textContent =
             "削除";
@@ -755,6 +1061,7 @@ function renderCart() {
 
                 renderCart();
 
+
                 setStatus(
                     "カートから削除しました"
                 );
@@ -764,6 +1071,7 @@ function renderCart() {
 
 
         item.appendChild(info);
+
         item.appendChild(deleteButton);
 
 
@@ -772,9 +1080,18 @@ function renderCart() {
     });
 
 
-    lendButton.disabled = false;
+    if (currentMode === "lend") {
+
+        lendButton.disabled = false;
+
+    } else {
+
+        returnButton.disabled = false;
+
+    }
 
 }
+
 
 
 /* =========================
@@ -786,6 +1103,7 @@ document
     .addEventListener(
         "click",
         function() {
+
 
             if (selectedUser === "") {
 
@@ -816,6 +1134,7 @@ document
 
 
             lendButton.disabled = true;
+
 
             setStatus(
                 "貸し出し処理中..."
@@ -891,6 +1210,7 @@ document
                         data.message
                     );
 
+
                     lendButton.disabled =
                         false;
 
@@ -906,6 +1226,7 @@ document
                     "貸し出し処理に失敗しました"
                 );
 
+
                 lendButton.disabled =
                     false;
 
@@ -913,6 +1234,137 @@ document
 
         }
     );
+
+
+
+/* =========================
+   返却
+========================= */
+
+document
+    .getElementById("returnButton")
+    .addEventListener(
+        "click",
+        async function() {
+
+
+            if (cart.length === 0) {
+
+                setStatus(
+                    "返却カートが空です"
+                );
+
+                return;
+
+            }
+
+
+            const returnButton =
+                document.getElementById(
+                    "returnButton"
+                );
+
+
+            returnButton.disabled = true;
+
+
+            setStatus(
+                "返却処理中..."
+            );
+
+
+            try {
+
+                for (const book of cart) {
+
+                    const params =
+                        new URLSearchParams();
+
+
+                    params.append(
+                        "action",
+                        "return"
+                    );
+
+
+                    params.append(
+                        "jan",
+                        book.jan
+                    );
+
+
+                    const response =
+                        await fetch(
+                            GAS_URL +
+                            "?" +
+                            params.toString()
+                        );
+
+
+                    const data =
+                        await response.json();
+
+
+                    if (!data.success) {
+
+                        alert(
+                            data.message
+                        );
+
+                        returnButton.disabled =
+                            false;
+
+                        setStatus(
+                            "返却処理を確認してください"
+                        );
+
+                        return;
+
+                    }
+
+                }
+
+
+                alert(
+                    "返却が完了しました"
+                );
+
+
+                cart = [];
+
+                renderCart();
+
+
+                jan.value = "";
+
+
+                setStatus(
+                    "返却完了"
+                );
+
+
+            } catch (error) {
+
+                console.error(error);
+
+                alert(
+                    "返却処理に失敗しました"
+                );
+
+
+                returnButton.disabled =
+                    false;
+
+
+                setStatus(
+                    "返却処理に失敗しました"
+                );
+
+            }
+
+        }
+    );
+
 
 
 /* =========================
@@ -930,4 +1382,6 @@ function setStatus(message) {
 </script>
 
 </body>
+
 </html>
+```
