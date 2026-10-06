@@ -250,6 +250,8 @@ let DetectedCount = 0;
 
 let DetectedCode = "";
 
+let scanPaused = false;
+
 
 let video;
 
@@ -589,7 +591,11 @@ function startCamera() {
 ========================= */
 
 function Scan(first) {
-
+    
+　　 if (scanPaused) {
+        return;
+    }
+    
     if (first) {
 
         w = video.videoWidth;
@@ -747,6 +753,11 @@ function Scan(first) {
 
 Quagga.onDetected(function(result) {
 
+    if (scanPaused) {
+        return;
+    }
+
+
     if (
         !result ||
         !result.codeResult ||
@@ -761,11 +772,6 @@ Quagga.onDetected(function(result) {
     const barcode =
         result.codeResult.code;
 
-
-    /*
-     * 3回連続で同じJANなら
-     * 正式に読み取ったと判断
-     */
 
     if (DetectedCode === barcode) {
 
@@ -785,6 +791,8 @@ Quagga.onDetected(function(result) {
         DetectedCode = "";
 
         DetectedCount = 0;
+
+        scanPaused = true;
 
         confirmBarcode(barcode);
 
@@ -921,29 +929,55 @@ function confirmBarcode(barcode) {
          * 貸出履歴側で実際に貸出中か確認する
          */
 
-        cart.push(book);
+        const addBook =
+    confirm(
+        "「" +
+        book.title +
+        "」をカートに追加しますか？"
+    );
 
 
-        renderCart();
+if (addBook) {
+
+    cart.push(book);
+
+    renderCart();
 
 
-        if (currentMode === "lend") {
+    if (currentMode === "lend") {
 
-            setStatus(
-                "「" +
-                book.title +
-                "」を貸出カートに追加しました"
-            );
+        setStatus(
+            "「" +
+            book.title +
+            "」を貸出カートに追加しました"
+        );
 
-        } else {
+    } else {
 
-            setStatus(
-                "「" +
-                book.title +
-                "」を返却カートに追加しました"
-            );
+        setStatus(
+            "「" +
+            book.title +
+            "」を返却カートに追加しました"
+        );
 
-        }
+    }
+
+} else {
+
+    setStatus(
+        "カートへの追加をキャンセルしました"
+    );
+
+}
+
+
+/*
+ * 次の本を読み取れるようにする
+ */
+
+scanPaused = false;
+
+Scan(false);
 
     })
 
