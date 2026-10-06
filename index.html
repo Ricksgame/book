@@ -1244,8 +1244,7 @@ document
     .getElementById("returnButton")
     .addEventListener(
         "click",
-        async function() {
-
+        function() {
 
             if (cart.length === 0) {
 
@@ -1272,77 +1271,85 @@ document
             );
 
 
-            try {
+            /*
+             * カートに入っている本の
+             * JANコードだけを送信
+             */
 
-                for (const book of cart) {
+            const books =
+                cart.map(
+                    book => book.jan
+                );
 
-                    const params =
-                        new URLSearchParams();
+
+            const params =
+                new URLSearchParams();
 
 
-                    params.append(
-                        "action",
-                        "return"
+            params.append(
+                "action",
+                "return"
+            );
+
+
+            params.append(
+                "books",
+                JSON.stringify(books)
+            );
+
+
+            fetch(
+                GAS_URL +
+                "?" +
+                params.toString()
+            )
+
+            .then(response =>
+                response.json()
+            )
+
+            .then(data => {
+
+                if (data.success) {
+
+                    alert(
+                        data.count +
+                        "冊の返却が完了しました"
                     );
 
 
-                    params.append(
-                        "jan",
-                        book.jan
+                    cart = [];
+
+                    renderCart();
+
+
+                    jan.value = "";
+
+
+                    setStatus(
+                        "返却完了"
+                    );
+
+                } else {
+
+                    alert(
+                        data.message
                     );
 
 
-                    const response =
-                        await fetch(
-                            GAS_URL +
-                            "?" +
-                            params.toString()
-                        );
+                    returnButton.disabled =
+                        false;
 
 
-                    const data =
-                        await response.json();
-
-
-                    if (!data.success) {
-
-                        alert(
-                            data.message
-                        );
-
-                        returnButton.disabled =
-                            false;
-
-                        setStatus(
-                            "返却処理を確認してください"
-                        );
-
-                        return;
-
-                    }
+                    setStatus(
+                        "返却できませんでした"
+                    );
 
                 }
 
+            })
 
-                alert(
-                    "返却が完了しました"
-                );
-
-
-                cart = [];
-
-                renderCart();
-
-
-                jan.value = "";
-
-
-                setStatus(
-                    "返却完了"
-                );
-
-
-            } catch (error) {
+            .catch(error => {
 
                 console.error(error);
 
@@ -1359,7 +1366,7 @@ document
                     "返却処理に失敗しました"
                 );
 
-            }
+            });
 
         }
     );
