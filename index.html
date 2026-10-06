@@ -822,7 +822,11 @@ function confirmBarcode(barcode) {
         setStatus(
             "先にユーザーを選択してください"
         );
+        
+        scanPaused = false;
 
+        Scan(false);
+        
         return;
 
     }
