@@ -852,13 +852,17 @@ function confirmBarcode(barcode) {
 
     if (alreadyInCart) {
 
-        setStatus(
-            "この本はすでにカートに入っています"
-        );
+    setStatus(
+        "この本はすでにカートに入っています"
+    );
 
-        return;
+    scanPaused = false;
 
-    }
+    Scan(false);
+
+    return;
+
+　　 }
 
 
     setStatus(
