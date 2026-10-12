@@ -11,6 +11,8 @@
 <title>本貸出システム</title>
 
 <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 
 <style>
 
@@ -144,6 +146,39 @@ button {
 
 <body>
 
+
+<div id="loginScreen" style="max-width: 360px; margin: 60px auto; padding: 24px; text-align: center; border: 1px solid #ccc; border-radius: 12px;">
+  <h2>📚 図書館システム ログイン</h2>
+
+  <input
+    id="loginEmail"
+    type="email"
+    placeholder="メールアドレス"
+    autocomplete="username"
+    style="box-sizing: border-box; width: 100%; padding: 12px; margin: 8px 0;"
+  >
+
+  <input
+    id="loginPassword"
+    type="password"
+    placeholder="パスワード"
+    autocomplete="current-password"
+    style="box-sizing: border-box; width: 100%; padding: 12px; margin: 8px 0;"
+  >
+
+  <button
+    id="loginButton"
+    type="button"
+    onclick="login()"
+    style="width: 100%; padding: 12px; margin-top: 12px;"
+  >
+    ログイン
+  </button>
+
+  <p id="loginMessage" role="status"></p>
+</div>
+
+
 <div class="container">
 
 <h1>📚 図書館貸出システム</h1>
@@ -238,6 +273,61 @@ button {
 
 const GAS_URL = "https://script.google.com/macros/s/AKfycbw28g8uWVeqYKUvdC77ERscKLAhAPaI4gOMYIVaxjT79-RO7Ccy_vHzhZOyp4d202LRMw/exec";
 
+const firebaseConfig = {
+    apiKey: "ここにapiKey",
+    authDomain: "ここにauthDomain",
+    projectId: "ここにprojectId",
+    appId: "ここにappId"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+
+async function gasFetch(url) {
+  const user = firebase.auth().currentUser;
+
+  if (!user) {
+    throw new Error("ログインしてください");
+  }
+
+  const token = await user.getIdToken();
+  const separator = url.includes("?") ? "&" : "?";
+
+  return fetch(
+    url + separator + "token=" + encodeURIComponent(token)
+  );
+}
+
+      
+const auth = firebase.auth();
+
+
+async function login() {
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value;
+    const message = document.getElementById("loginMessage");
+    const button = document.getElementById("loginButton");
+
+    message.textContent = "";
+    button.disabled = true;
+
+    try {
+        await auth.signInWithEmailAndPassword(email, password);
+
+        document.getElementById("loginScreen").style.display = "none";
+      　message.textContent = "";
+
+      　await loadUsers();
+      　startCamera();
+      　updateMode();
+        
+    } catch (error) {
+        message.textContent = "ログインできませんでした。メールアドレスとパスワードを確認してください。";
+    } finally {
+        button.disabled = false;
+    }
+}
+
 
 let cart = [];
 
@@ -314,11 +404,6 @@ window.addEventListener("load", function() {
 
     jan = document.getElementById("jan");
 
-
-    loadUsers();
-
-    startCamera();
-
     updateMode();
 
 });
@@ -331,7 +416,7 @@ window.addEventListener("load", function() {
 
 function loadUsers() {
 
-    fetch(GAS_URL + "?action=getUsers")
+    gasfetch(GAS_URL + "?action=getUsers")
 
         .then(response => response.json())
 
@@ -872,7 +957,7 @@ function confirmBarcode(barcode) {
      * GASから本の情報を取得
      */
 
-    fetch(
+    gasfetch(
         GAS_URL +
         "?action=getBooks"
     )
@@ -1208,7 +1293,7 @@ document
             );
 
 
-            fetch(
+            gasfetch(
                 GAS_URL +
                 "?" +
                 params.toString()
@@ -1349,7 +1434,7 @@ document
             );
 
 
-            fetch(
+            gasfetch(
                 GAS_URL +
                 "?" +
                 params.toString()
