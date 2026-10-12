@@ -380,12 +380,6 @@ document
 
         selectedUser = this.value;
 
-
-        if (currentMode !== "lend") {
-            return;
-        }
-
-
         if (selectedUser === "") {
 
             setStatus(
@@ -1298,6 +1292,16 @@ document
 
             }
 
+            if (selectedUser === "") {
+
+                setStatus(
+                    "先にユーザーを選択してください"
+                );
+
+                return;
+
+            }
+
 
             const returnButton =
                 document.getElementById(
@@ -1337,6 +1341,11 @@ document
             params.append(
                 "books",
                 JSON.stringify(books)
+            );
+
+            params.append(
+                "user",
+                selectedUser
             );
 
 
