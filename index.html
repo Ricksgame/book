@@ -179,7 +179,7 @@ button {
 </div>
 
 
-<div class="container">
+<div class="container hidden">
 
 <h1>📚 図書館貸出システム</h1>
 
@@ -315,6 +315,7 @@ async function login() {
         await auth.signInWithEmailAndPassword(email, password);
 
         document.getElementById("loginScreen").style.display = "none";
+      　document.querySelector(".container").classList.remove("hidden");
       　message.textContent = "";
 
       　await loadUsers();
@@ -416,7 +417,7 @@ window.addEventListener("load", function() {
 
 function loadUsers() {
 
-    gasfetch(GAS_URL + "?action=getUsers")
+    gasFetch(GAS_URL + "?action=getUsers")
 
         .then(response => response.json())
 
@@ -957,7 +958,7 @@ function confirmBarcode(barcode) {
      * GASから本の情報を取得
      */
 
-    gasfetch(
+    gasFetch(
         GAS_URL +
         "?action=getBooks"
     )
@@ -1293,7 +1294,7 @@ document
             );
 
 
-            gasfetch(
+            gasFetch(
                 GAS_URL +
                 "?" +
                 params.toString()
@@ -1434,7 +1435,7 @@ document
             );
 
 
-            gasfetch(
+            gasFetch(
                 GAS_URL +
                 "?" +
                 params.toString()
