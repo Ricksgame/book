@@ -416,44 +416,35 @@ window.addEventListener("load", function() {
 ========================= */
 
 function loadUsers() {
+    const select = document.getElementById("userSelect");
+
+    select.innerHTML = '<option value="">ユーザーを選択してください</option>';
 
     gasFetch(GAS_URL + "?action=getUsers")
-
         .then(response => response.json())
-
         .then(users => {
-
-            const select =
-                document.getElementById("userSelect");
-
+            if (!Array.isArray(users)) {
+                throw new Error(
+                    users.message || "ユーザー一覧の形式が正しくありません"
+                );
+            }
 
             users.forEach(user => {
-
-                const option =
-                    document.createElement("option");
-
+                const option = document.createElement("option");
                 option.value = user;
-
                 option.textContent = user;
-
                 select.appendChild(option);
-
             });
 
+            if (users.length === 0) {
+                setStatus("ユーザーシートにユーザーが登録されていません");
+            }
         })
-
         .catch(error => {
-
-            console.error(error);
-
-            setStatus(
-                "ユーザー情報を取得できませんでした"
-            );
-
+            console.error("ユーザー取得エラー:", error);
+            setStatus("ユーザー情報を取得できませんでした");
         });
-
 }
-
 
 
 /* =========================
